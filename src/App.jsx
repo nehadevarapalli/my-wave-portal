@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import './App.css';
+import wavePortal from "./utils/WavePortal.json";
 import abi from "./utils/WavePortal.json";
 
 const App = () => {
@@ -16,19 +17,17 @@ const App = () => {
   /*
   * Create a variable here that holds the contract address after you deploy
   */
-  const contractAddress = "0x936f95973a1D3ea3Dba34b719dC12C9a87CB6AEd";
+  const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
   /*
    * Create a method that gets all waves from your contract
   */
-  const getAllWaves = async () => {
-    const { ethereum } = window;
-    
+  const getAllWaves = async () => {    
     try {
-      if(ethereum) {
-        const provider = new ethers.providers.Web3Provider(ethereum);
+      if(window.ethereum) {
+        const provider = new ethers.providers.Web3Provider();
         const signer = provider.getSigner();
-        const wavePortalContract = new ethers.Contract(contractAddress, contractABI, signer);
+        const wavePortalContract = new ethers.Contract(contractAddress, wavePortal.abi, signer);
 
         /*
          * Call the getAllWaves method from the Smart Contract
@@ -38,49 +37,37 @@ const App = () => {
         /*
          * Picking out address, timestamp, and message for the UI
         */
-        const wavesCleaned = waves.map(wave => {
-          return {
+        let wavesCLeaned = [];
+        waves.forEach(wave => {
+          wavesCleaned.push({
             address: wave.waver,
             timestamp: new Date(wave.timestamp * 1000),
-            message: wave.message,
-          };
+            message: wave.message
+          });
         });
         
         /*
          * Store our data in React State
         */
         setAllWaves(wavesCleaned);
+
+        wavePortalContract.on("NewWave", (from, timestamp, message) => {
+          console.log("NewWave", from, timestamp, message);
+
+          setAllWaves(prevState => [...prevState, {
+            address: from, 
+            timestamp: new Date(timestamp * 1000),
+            message: message
+          }]);
+        });
       } else {
         console.log("Ethereum object doesn't exist!");
       }
     } catch(error) {
       console.log(error);
     }
-  };
-
-  /**
-   * Listen in for emitter events!
-   */
-  useEffect(() => {
-    let wavePortalContract;
-
-    const onNewWave = (from, timestamp, message) => {
-      console.log("NewWave", from, timestamp, message);
-      setAllWaves(prevState => [
-        ...prevState,
-        {
-          address: from,
-          timestamp: new Date(timestamp * 1000),
-          message: message,
-        },
-      ]);
-    };
-  }, []);
+  }
   
-  /*
-  * Create a variable here that references the abi content
-  */
-  const contractABI = abi.abi;
   
   const checkIfWalletIsConnected = async () => {
     /*
@@ -141,7 +128,7 @@ const App = () => {
       if (ethereum) {
         const provider = new ethers.providers.Web3Provider(ethereum);
         const signer = provider.getSigner();
-        const wavePortalContract = new ethers.Contract(contractAddress, contractABI, signer);
+        const wavePortalContract = new ethers.Contract(contractAddress, wavePortal.abi, signer);
 
         let count = await wavePortalContract.getTotalWaves();
         console.log("Retrieved total wave count...", count.toNumber());
@@ -149,7 +136,7 @@ const App = () => {
         /*
         * Execute the actual wave from your smart contract
         */
-        const waveTxn = await wavePortalContract.wave("this is a message", { gasLimit: 300000 });
+        const waveTxn = await wavePortalContract.wave("hello", {gasLimit:300000});
         console.log("Mining...", waveTxn.hash);
 
         await waveTxn.wait();
@@ -205,4 +192,4 @@ const App = () => {
   );
 }
 
-export default App;
+export default App
